@@ -23,5 +23,9 @@ target("LearnWebGPU")
 
     -- C++ source files
     add_files("LearnWebGPU/Source/**.cpp")
-    
+
+    -- C++ header files
+    add_includedirs("LearnWebGPU/Include", {public = true})
+    add_headerfiles("LearnWebGPU/Include/**.hpp")
+
     add_packages("glfw", "wgpu-native")
