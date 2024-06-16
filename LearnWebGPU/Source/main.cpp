@@ -32,10 +32,11 @@ int main() {
 
     std::cout << "Got adapter: " << adapter << std::endl;
 
-    // We clean up the WebGPU instance.
-    wgpuInstanceRelease(instance);
-
+    // We display informations about the adapter.
     InspectAdapter(adapter);
+
+    // We clean up the WebGPU instance since we don't need it once we have the adapter.
+    wgpuInstanceRelease(instance);
 
     wgpuAdapterRelease(adapter);
 }
