@@ -11,12 +11,15 @@ add_rules("plugin.vsxmake.autoupdate")
 set_languages("cxx20")
 set_optimize("fastest")
 
-add_requires("glfw", "wgpu-native")
+add_requires("glfw", "wgpu-native", "glfw3webgpu")
 
 local outputdir = "$(mode)-$(os)-$(arch)"
 
 target("LearnWebGPU")
     set_kind("binary")
+
+    add_defines("WEBGPU_BACKEND_WGPU") -- Only wgpu-native is on xmake for now.
+
 
     set_targetdir("build/" .. outputdir .. "/LearnWebGPU/bin")
     set_objectdir("build/" .. outputdir .. "/LearnWebGPU/obj")
@@ -28,4 +31,4 @@ target("LearnWebGPU")
     add_includedirs("LearnWebGPU/Include", {public = true})
     add_headerfiles("LearnWebGPU/Include/**.hpp")
 
-    add_packages("glfw", "wgpu-native")
+    add_packages("glfw", "wgpu-native", "glfw3webgpu")
