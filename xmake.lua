@@ -18,9 +18,6 @@ local outputdir = "$(mode)-$(os)-$(arch)"
 target("LearnWebGPU")
     set_kind("binary")
 
-    add_defines("WEBGPU_BACKEND_WGPU") -- Only wgpu-native is on xmake for now.
-
-
     set_targetdir("build/" .. outputdir .. "/LearnWebGPU/bin")
     set_objectdir("build/" .. outputdir .. "/LearnWebGPU/obj")
 

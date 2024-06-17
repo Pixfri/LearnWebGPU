@@ -6,9 +6,7 @@
 #include <glfw3webgpu.h>
 
 #include <webgpu/webgpu.h>
-#ifdef WEBGPU_BACKEND_WGPU
 #include <webgpu/wgpu.h>
-#endif
 
 #include <iostream>
 
@@ -32,18 +30,6 @@ bool Application::Initialize() {
     // We create a descriptor.
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
-
-#ifdef WEBGPU_BACKEND_DAWN
-    WGPUDawnTogglesDescriptor toggles;
-    toggles.chain.next = nullptr;
-    toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    toggles.disabledTogglesCount = 0;
-    toggles.enabledTogglesCount = 1;
-    const char *toggleName = "enable_immediate_error_handling";
-    toggles.enabledToggles = &toggleName;
-
-    desc.nextInChain = &toggles.chain
-#endif
 
     // We create the instance using this descriptor.
     WGPUInstance instance = wgpuCreateInstance(&desc);
@@ -102,10 +88,33 @@ bool Application::Initialize() {
 
     m_Queue = wgpuDeviceGetQueue(m_Device);
 
+    WGPUSurfaceConfiguration config = {};
+    config.nextInChain = nullptr;
+
+    config.width = 640;
+    config.height = 480;
+
+    WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(m_Surface, adapter);
+    config.format = surfaceFormat;
+
+    config.viewFormatCount = 0;
+    config.viewFormats = nullptr;
+
+    config.usage = WGPUTextureUsage_RenderAttachment;
+
+    config.device = m_Device;
+
+    config.presentMode = WGPUPresentMode_Fifo;
+
+    config.alphaMode = WGPUCompositeAlphaMode_Auto;
+
+    wgpuSurfaceConfigure(m_Surface, &config);
+
     return true;
 }
 
-void Application::Terminate() {
+void Application::Terminate(){
+    wgpuSurfaceUnconfigure(m_Surface);
     wgpuQueueRelease(m_Queue);
     wgpuSurfaceRelease(m_Surface);
     wgpuDeviceRelease(m_Device);
@@ -116,13 +125,75 @@ void Application::Terminate() {
 void Application::MainLoop() {
     glfwPollEvents();
 
-#if defined(WEBGPU_BACKEND_DAWN)
-        wgpuDeviceTick(device);
-#elif defined(WEBGPU_BACKEND_WGPU)
+    WGPUTextureView targetView = GetNextSurfaceTextureView();
+    if (!targetView) return;
+
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.nextInChain = nullptr;
+    encoderDesc.label = "Command encoder";
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_Device,  &encoderDesc);
+
+    WGPURenderPassDescriptor renderPassDesc = {};
+    renderPassDesc.nextInChain = nullptr;
+
+    WGPURenderPassColorAttachment renderPassColorAttachment = {};
+
+    renderPassColorAttachment.view = targetView;
+
+    renderPassColorAttachment.resolveTarget = nullptr;
+
+    renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
+    renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
+    renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
+
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &renderPassColorAttachment;
+
+    renderPassDesc.depthStencilAttachment = nullptr;
+    renderPassDesc.timestampWrites = nullptr;
+
+    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
+    wgpuRenderPassEncoderEnd(renderPass);
+    wgpuRenderPassEncoderRelease(renderPass);
+
+    WGPUCommandBufferDescriptor commandBufferDesc = {};
+    commandBufferDesc.nextInChain = nullptr;
+    commandBufferDesc.label = "Command buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &commandBufferDesc);
+    wgpuCommandEncoderRelease(encoder);
+
+    wgpuQueueSubmit(m_Queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+
+    wgpuTextureViewRelease(targetView);
+    wgpuSurfacePresent(m_Surface);
+
     wgpuDevicePoll(m_Device, false, nullptr);
-#endif
 }
 
 bool Application::IsRunning() {
     return !glfwWindowShouldClose(m_Window);
+}
+
+WGPUTextureView Application::GetNextSurfaceTextureView() {
+    WGPUSurfaceTexture surfaceTexture;
+    wgpuSurfaceGetCurrentTexture(m_Surface, &surfaceTexture);
+
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+        return nullptr;
+    }
+
+    WGPUTextureViewDescriptor viewDescriptor;
+    viewDescriptor.nextInChain = nullptr;
+    viewDescriptor.label= "Surface texture view";
+    viewDescriptor.format = wgpuTextureGetFormat(surfaceTexture.texture);
+    viewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    viewDescriptor.baseMipLevel = 0;
+    viewDescriptor.mipLevelCount = 1;
+    viewDescriptor.baseArrayLayer = 0;
+    viewDescriptor.arrayLayerCount = 1;
+    viewDescriptor.aspect = WGPUTextureAspect_All;
+    WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
+
+    return targetView;
 }

@@ -19,4 +19,6 @@ private:
     WGPUDevice m_Device;
     WGPUQueue m_Queue;
     WGPUSurface m_Surface;
+
+    WGPUTextureView GetNextSurfaceTextureView();
 };
