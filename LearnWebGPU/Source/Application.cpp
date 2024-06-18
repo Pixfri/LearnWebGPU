@@ -377,6 +377,8 @@ void Application::PlayingWithBuffers() {
             std::cout << static_cast<int>(bufferData[i]);
         }
         std::cout << "]" << std::endl;
+
+        wgpuBufferUnmap(context->Buffer);
     };
 
     Context context = { false, m_Buffer2 };
