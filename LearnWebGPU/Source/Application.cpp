@@ -8,7 +8,9 @@
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
+#include <cstdint>
 #include <iostream>
+#include <vector>
 
 const char *shaderSource = R"(
     @vertex
@@ -132,10 +134,14 @@ bool Application::Initialize() {
 
     InitializePipeline();
 
+    PlayingWithBuffers();
+
     return true;
 }
 
 void Application::Terminate(){
+    wgpuBufferRelease(m_Buffer1);
+    wgpuBufferRelease(m_Buffer2);
     wgpuRenderPipelineRelease(m_Pipeline);
     wgpuSurfaceUnconfigure(m_Surface);
     wgpuQueueRelease(m_Queue);
@@ -317,4 +323,67 @@ void Application::InitializePipeline() {
 
     // We no longer need to access the shader module
     wgpuShaderModuleRelease(shaderModule);
+}
+
+void Application::PlayingWithBuffers() {
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.nextInChain = nullptr;
+    bufferDesc.label = "Some GPU-Side data buffer";
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+    bufferDesc.size = 16;
+    bufferDesc.mappedAtCreation = false;
+    m_Buffer1 = wgpuDeviceCreateBuffer(m_Device, &bufferDesc);
+
+    bufferDesc.label = "Output buffer";
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+    m_Buffer2 = wgpuDeviceCreateBuffer(m_Device, &bufferDesc);
+
+    // Create some CPU-side data buffer (of size 16 bytes).
+    std::vector<uint8_t> numbers(16);
+    for (uint8_t i = 0; i < 16; i++) numbers[i] = i;
+    // `numbers` now contains  [ 0, 1, 2, ... ]
+
+    // Copy this from `numbers` (RAM) to `buffer1` (VRAM).
+    wgpuQueueWriteBuffer(m_Queue, m_Buffer1, 0, numbers.data(), numbers.size());
+
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_Device, nullptr);
+
+    wgpuCommandEncoderCopyBufferToBuffer(encoder, m_Buffer1, 0, m_Buffer2, 0, 16);
+
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, nullptr);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuQueueSubmit(m_Queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+
+    wgpuDevicePoll(m_Device, false, nullptr);
+
+    struct Context {
+        bool Ready;
+        WGPUBuffer Buffer;
+    };
+
+    auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void *pUserData) {
+        Context *context = static_cast<Context*>(pUserData);
+        context->Ready = true;
+
+        std::cout << "Buffer 2 mapped with status " << status << std::endl;
+        if (status != WGPUBufferMapAsyncStatus_Success) return;
+
+        auto bufferData = static_cast<const uint8_t*>(wgpuBufferGetConstMappedRange(context->Buffer, 0, 16));
+
+        std::cout << "BufferData = [";
+        for (int i = 0; i < 16; ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << static_cast<int>(bufferData[i]);
+        }
+        std::cout << "]" << std::endl;
+    };
+
+    Context context = { false, m_Buffer2 };
+
+    wgpuBufferMapAsync(m_Buffer2, WGPUMapMode_Read, 0, 16, onBuffer2Mapped, &context);
+
+    while (!context.Ready) {
+        wgpuDevicePoll(m_Device, false, nullptr);
+    }
 }

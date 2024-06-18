@@ -22,6 +22,10 @@ private:
     WGPURenderPipeline m_Pipeline;
     WGPUTextureFormat m_SurfaceFormat = WGPUTextureFormat_Undefined;
 
+    WGPUBuffer m_Buffer1;
+    WGPUBuffer m_Buffer2;
+
     WGPUTextureView GetNextSurfaceTextureView();
     void InitializePipeline();
+    void PlayingWithBuffers();
 };
