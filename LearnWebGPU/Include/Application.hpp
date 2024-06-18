@@ -19,6 +19,9 @@ private:
     WGPUDevice m_Device;
     WGPUQueue m_Queue;
     WGPUSurface m_Surface;
+    WGPURenderPipeline m_Pipeline;
+    WGPUTextureFormat m_SurfaceFormat = WGPUTextureFormat_Undefined;
 
     WGPUTextureView GetNextSurfaceTextureView();
+    void InitializePipeline();
 };
