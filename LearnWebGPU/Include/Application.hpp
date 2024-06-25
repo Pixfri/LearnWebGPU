@@ -16,6 +16,8 @@ private:
 
     WGPUBuffer m_VertexBuffer;
     uint32_t m_VertexCount;
+    WGPUBuffer m_IndexBuffer;
+    uint32_t m_IndexCount;
     
 public:
     bool Initialize();

@@ -40,7 +40,8 @@ const char *shaderSource = R"(
     @vertex
     fn vs_main(in: VertexInput) -> VertexOutput {
         var out: VertexOutput; // Create the output struct.
-        out.position = vec4f(in.position, 0.0, 1.0); // Same as what we used to directly return.
+        let ratio = 640.0 / 480.0; // The width and the height of the target surface.
+        out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0); // Same as what we used to directly return.
         out.color = in.color; // Forward the color attribute to the fragment shader.
         return out;
     }
@@ -210,9 +211,11 @@ void Application::MainLoop() const {
 
     // Set vertex buffer while encoding the render pass.
     wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_VertexBuffer, 0, wgpuBufferGetSize(m_VertexBuffer));
+    // The second argument must correspond to the choice of uint16_t or uint32_t
+    // we've done when creating the index buffer.
+    wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_IndexBuffer, WGPUIndexFormat_Uint16, 0, m_IndexCount * sizeof(uint16_t));
     
-    // We use the `m_VertexCount` variable instead of hard-coding the vertex count.
-    wgpuRenderPassEncoderDraw(renderPass, m_VertexCount, 1, 0, 0);
+    wgpuRenderPassEncoderDrawIndexed(renderPass, m_IndexCount, 1, 0, 0, 0);
 
     wgpuRenderPassEncoderEnd(renderPass);
     wgpuRenderPassEncoderRelease(renderPass);
@@ -379,32 +382,41 @@ void Application::InitializePipeline() {
 
 void Application::InitializeBuffers() {
     // Vertex buffer data
-    // There are 2 floats per vertex, one for x and one for y.
-    std::vector<float> vertexData = {
-        // x0,  y0,  r0,  g0,  b0
-        -0.5, -0.5, 1.0, 0.0, 0.0,
-
-        // x1,  y1,  r1,  g1,  b1
-        +0.5, -0.5, 0.0, 1.0, 0.0,
-
-        // ...
-        +0.0,   +0.5, 0.0, 0.0, 1.0,
-        -0.55f, -0.5, 1.0, 1.0, 0.0,
-        -0.05f, +0.5, 1.0, 0.0, 1.0,
-        -0.55f, +0.5, 0.0, 1.0, 1.0
+    // There are 5 floats per vertex, one for x, one for y, one for r, one for g, one for b.
+    std::vector<float> pointData = {
+        // x,   y,     r,   g,   b
+        -0.5, -0.5,   1.0, 0.0, 0.0,
+        +0.5, -0.5,   0.0, 1.0, 0.0,
+        +0.5, +0.5,   0.0, 0.0, 1.0,
+        -0.5, +0.5,   1.0, 1.0, 0.0
     };
     // We now divide the vector size be 5 fields.
-    m_VertexCount = static_cast<uint32_t>(vertexData.size() / 5);
+    m_VertexCount = static_cast<uint32_t>(pointData.size() / 5);
+
+    // This is a list of indices referencing positions in the pointData
+    std::vector<uint16_t> indexData = {
+        0, 1, 2, // Triangle #0
+        0, 2, 3  // Triangle #1
+    };
+    m_IndexCount = static_cast<int>(indexData.size());
     
     WGPUBufferDescriptor bufferDesc;
     bufferDesc.nextInChain = nullptr;
     bufferDesc.label = "Vertex buffer";
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    bufferDesc.size = vertexData.size() * sizeof(float);
+    bufferDesc.size = pointData.size() * sizeof(float);
     bufferDesc.mappedAtCreation = false;
     m_VertexBuffer = wgpuDeviceCreateBuffer(m_Device, &bufferDesc);
 
-    wgpuQueueWriteBuffer(m_Queue, m_VertexBuffer, 0, vertexData.data(), bufferDesc.size);
+    wgpuQueueWriteBuffer(m_Queue, m_VertexBuffer, 0, pointData.data(), bufferDesc.size);
+
+    bufferDesc.label = "Index buffer";
+    bufferDesc.size = indexData.size() * sizeof(uint16_t);
+    bufferDesc.size = (bufferDesc.size + 3) & ~3; // Round up to the next multiple of 4.
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    m_IndexBuffer = wgpuDeviceCreateBuffer(m_Device, &bufferDesc);
+
+    wgpuQueueWriteBuffer(m_Queue, m_IndexBuffer, 0, indexData.data(), bufferDesc.size);
 }
 
 // Initialize the WGPULimits structure.
