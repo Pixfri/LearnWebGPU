@@ -8,19 +8,46 @@
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <vector>
 
 const char *shaderSource = R"(
+    /**
+     * A structure with fields labeled with vertex attribute locations can be used
+     * as input to the entry point of a shader.
+     */
+    struct VertexInput {
+        @location(0) position: vec2f,
+        @location(1) color: vec3f
+    };
+
+    /**
+     * A structure with fields labeled with builtins and locations can also be used
+     * as *output* of the vertex shader, which is also the input of the fragment
+     * shader.
+     */
+    struct VertexOutput {
+        @builtin(position) position: vec4f,
+        // The location here does not refer to a vertex attribute, it just means
+        // that this field must be handled by the rasterizer.
+        // (It can also refer to another field of another struct that would be used
+        // as input to the fragment shader.)
+        @location(0) color: vec3f,
+    };
+
     @vertex
-    fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
-        return vec4f(in_vertex_position, 0.0, 1.0);
+    fn vs_main(in: VertexInput) -> VertexOutput {
+        var out: VertexOutput; // Create the output struct.
+        out.position = vec4f(in.position, 0.0, 1.0); // Same as what we used to directly return.
+        out.color = in.color; // Forward the color attribute to the fragment shader.
+        return out;
     }
 
     @fragment
-    fn fs_main() -> @location(0) vec4f {
-        return vec4f(0.0, 0.4, 1.0, 1.0);
+    fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+        return vec4f(in.color, 1.0); // Use the interpolated color coming from the vertex shader.
     }
 )";
 
@@ -168,7 +195,7 @@ void Application::MainLoop() const {
 
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-    renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
+    renderPassColorAttachment.clearValue = WGPUColor{ 0.05, 0.05, 0.05, 1.0 };
 
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
@@ -253,22 +280,29 @@ void Application::InitializePipeline() {
     pipelineDesc.nextInChain = nullptr;
 
     WGPUVertexBufferLayout vertexBufferLayout{};
-    
-    WGPUVertexAttribute positionAttrib;
+
+    std::array<WGPUVertexAttribute, 2> vertexAttribs;
 
     // == For each attribute, describe its layout, i.e, how to interpret the raw data ==
-    // Corresponds to @location(...)
-    positionAttrib.shaderLocation = 0;
-    // Means vec2f in the shader.
-    positionAttrib.format = WGPUVertexFormat_Float32x2;
-    // Index of the first element.
-    positionAttrib.offset = 0;
 
-    vertexBufferLayout.attributeCount = 1;
-    vertexBufferLayout.attributes = &positionAttrib;
+    // Position
+    // Corresponds to @location(...)
+    vertexAttribs[0].shaderLocation = 0;
+    // Means vec2f in the shader.
+    vertexAttribs[0].format = WGPUVertexFormat_Float32x2;
+    // Index of the first element.
+    vertexAttribs[0].offset = 0;
+
+    // Color
+    vertexAttribs[1].shaderLocation = 1;
+    vertexAttribs[1].format = WGPUVertexFormat_Float32x3;
+    vertexAttribs[1].offset = 2 * sizeof(float);
+
+    vertexBufferLayout.attributeCount = vertexAttribs.size();
+    vertexBufferLayout.attributes = vertexAttribs.data();
 
     // == Common to attributes from the same buffer ==
-    vertexBufferLayout.arrayStride = 2 * sizeof(float);
+    vertexBufferLayout.arrayStride = 5 * sizeof(float);
     vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
 
     pipelineDesc.vertex.bufferCount = 1;
@@ -347,17 +381,20 @@ void Application::InitializeBuffers() {
     // Vertex buffer data
     // There are 2 floats per vertex, one for x and one for y.
     std::vector<float> vertexData = {
-        // Define a first triangle:
-        -0.5, -0.5,
-        +0.5, -0.5,
-        +0.0, +0.5,
+        // x0,  y0,  r0,  g0,  b0
+        -0.5, -0.5, 1.0, 0.0, 0.0,
 
-        // Add a second triangle:
-        -0.55f, -0.5,
-        -0.05f, +0.5,
-        -0.55f, +0.5
+        // x1,  y1,  r1,  g1,  b1
+        +0.5, -0.5, 0.0, 1.0, 0.0,
+
+        // ...
+        +0.0,   +0.5, 0.0, 0.0, 1.0,
+        -0.55f, -0.5, 1.0, 1.0, 0.0,
+        -0.05f, +0.5, 1.0, 0.0, 1.0,
+        -0.55f, +0.5, 0.0, 1.0, 1.0
     };
-    m_VertexCount = static_cast<uint32_t>(vertexData.size() / 2);
+    // We now divide the vector size be 5 fields.
+    m_VertexCount = static_cast<uint32_t>(vertexData.size() / 5);
     
     WGPUBufferDescriptor bufferDesc;
     bufferDesc.nextInChain = nullptr;
@@ -415,14 +452,16 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     WGPURequiredLimits requiredLimits{};
     SetDefaults(requiredLimits.limits);
 
-    // We use at most 1 vertex attribute for now.
-    requiredLimits.limits.maxVertexAttributes = 1;
+    // We use at most 2 vertex attribute for now.
+    requiredLimits.limits.maxVertexAttributes = 2;
     // We should also tell that we use 1 vertex buffer.
     requiredLimits.limits.maxVertexBuffers = 1;
-    // Maximum size of a buffer is 6 vertices of 2 floats each.
-    requiredLimits.limits.maxBufferSize = 6 * 2 * sizeof(float);
-    // Maximum stride between 2 consecutive vertices in the vertex buffer.
-    requiredLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float);
+    // Maximum size of a buffer is 6 vertices of 5 floats each.
+    requiredLimits.limits.maxBufferSize = 6 * 5 * sizeof(float);
+    // Maximum stride between 5 consecutive vertices in the vertex buffer.
+    requiredLimits.limits.maxVertexBufferArrayStride = 5 * sizeof(float);
+    // There is a maximum of 3 floats forwarded from vertex to fragment shader.
+    requiredLimits.limits.maxInterStageShaderComponents = 3;
 
     return requiredLimits;
 }
