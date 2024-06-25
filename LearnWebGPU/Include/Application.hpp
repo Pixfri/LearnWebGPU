@@ -5,14 +5,6 @@
 #include <webgpu/webgpu.h>
 
 class Application {
-public:
-    bool Initialize();
-
-    void Terminate();
-
-    void MainLoop();
-
-    bool IsRunning();
 
 private:
     GLFWwindow *m_Window;
@@ -22,10 +14,21 @@ private:
     WGPURenderPipeline m_Pipeline;
     WGPUTextureFormat m_SurfaceFormat = WGPUTextureFormat_Undefined;
 
-    WGPUBuffer m_Buffer1;
-    WGPUBuffer m_Buffer2;
+    WGPUBuffer m_VertexBuffer;
+    uint32_t m_VertexCount;
+    
+public:
+    bool Initialize();
 
-    WGPUTextureView GetNextSurfaceTextureView();
+    void Terminate() const;
+
+    void MainLoop() const;
+
+    bool IsRunning() const;
+
+private:
+    WGPUTextureView GetNextSurfaceTextureView() const;
     void InitializePipeline();
-    void PlayingWithBuffers();
+    void InitializeBuffers();
+    WGPURequiredLimits GetRequiredLimits(WGPUAdapter adapter) const;
 };
