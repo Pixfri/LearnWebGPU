@@ -25,7 +25,8 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput; // Create the output struct.
     let ratio = 640.0 / 480.0; // The width and the height of the target surface.
-    out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0); // Same as what we used to directly return.
+    let offset = vec2f(-0.6875, -0.463);
+    out.position = vec4f(in.position.x + offset.x, (in.position.y + offset.y) * ratio, 0.0, 1.0); // Same as what we used to directly return.
     out.color = in.color; // Forward the color attribute to the fragment shader.
     return out;
 }
