@@ -11,5 +11,7 @@ int main() {
         app.MainLoop();
     }
 
+    app.Terminate();
+
     return 0;
 }
