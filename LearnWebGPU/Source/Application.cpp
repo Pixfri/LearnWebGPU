@@ -469,7 +469,7 @@ WGPURequiredLimits Application::GetRequiredLimits(WGPUAdapter adapter) const {
     // We should also tell that we use 1 vertex buffer.
     requiredLimits.limits.maxVertexBuffers = 1;
     // Maximum size of a buffer is 6 vertices of 5 floats each.
-    requiredLimits.limits.maxBufferSize = 6 * 5 * sizeof(float);
+    requiredLimits.limits.maxBufferSize = 15 * 5 * sizeof(float);
     // Maximum stride between 5 consecutive vertices in the vertex buffer.
     requiredLimits.limits.maxVertexBufferArrayStride = 5 * sizeof(float);
     // There is a maximum of 3 floats forwarded from vertex to fragment shader.
