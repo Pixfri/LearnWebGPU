@@ -15,8 +15,15 @@ add_requires("glfw", "wgpu-native", "glfw3webgpu")
 
 local outputdir = "$(mode)-$(os)-$(arch)"
 
+rule("cp-resources")
+    after_build(function (target)
+        os.cp(target:name() .. "/Resource", "build/" .. outputdir .. "/" .. target:name() .. "/bin")
+    end)
+
 target("LearnWebGPU")
     set_kind("binary")
+    
+    add_rules("cp-resources")
 
     set_targetdir("build/" .. outputdir .. "/LearnWebGPU/bin")
     set_objectdir("build/" .. outputdir .. "/LearnWebGPU/obj")
