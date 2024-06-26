@@ -1,4 +1,4 @@
-﻿#include "ModelLoader.hpp"
+﻿#include "FileLoader.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -59,4 +59,27 @@ bool LoadGeometry(const fs::path& path, std::vector<float>& pointData, std::vect
         }
     }
     return true;
+}
+
+WGPUShaderModule LoadShaderModule(const fs::path &path, WGPUDevice device) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return nullptr;
+    }
+    file.seekg(0, std::ios::end);
+    size_t size = file.tellg();
+    std::string shaderSource(size, ' ');
+    file.seekg(0);
+    file.read(shaderSource.data(), size);
+
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    shaderCodeDesc.code = shaderSource.c_str();
+    WGPUShaderModuleDescriptor shaderDesc{};
+    shaderDesc.nextInChain = nullptr;
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    return wgpuDeviceCreateShaderModule(device, &shaderDesc);
 }
