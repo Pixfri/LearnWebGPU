@@ -33,5 +33,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(in.color, 1.0); // Use the interpolated color coming from the vertex shader.
+    let linear_color = pow(in.color, vec3f(2.2));
+    return vec4f(linear_color, 1.0); // Use the interpolated color coming from the vertex shader.
 }

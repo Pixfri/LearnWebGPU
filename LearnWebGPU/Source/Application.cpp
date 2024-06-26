@@ -1,18 +1,20 @@
 #include "Application.hpp"
 
-#include "DeviceUtils.hpp"
-#include "FileLoader.hpp"
-
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
 
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
+#include <magic_enum/magic_enum.hpp>
+
 #include <array>
 #include <cstdint>
 #include <iostream>
 #include <vector>
+
+#include "DeviceUtils.hpp"
+#include "FileLoader.hpp"
 
 bool Application::Initialize() {
     if (!glfwInit()) {
@@ -117,6 +119,8 @@ bool Application::Initialize() {
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
 
     wgpuSurfaceConfigure(m_Surface, &config);
+
+    std::cout << "Surface format: " << magic_enum::enum_name<WGPUTextureFormat>(m_SurfaceFormat) << '\n';
 
     InitializePipeline();
 
