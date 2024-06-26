@@ -33,15 +33,16 @@ bool LoadGeometry(const fs::path &path, std::vector<float> &pointData, std::vect
             line.pop_back();
         }
 
-        switch (line) {
-            case "[points]":
-                currentSection = Section::Points;
-                break;
-            case "[indices]":
-                currentSection = Section::Indices;
-                break;
-            case "#": break; // Do nothing, this is a comment.
-            default: std::cout << "Error reading line : " << line << '\n';
+        if (line == "[points]") {
+            currentSection = Section::Points;
+        }
+
+        if (line == "[indices]") {
+            currentSection = Section::Indices;
+        }
+
+        if (line == "#" || line.empty()) {
+            // Do nothing, this line is a comment.
         }
 
         switch(currentSection) {

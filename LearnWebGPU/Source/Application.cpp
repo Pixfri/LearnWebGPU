@@ -1,6 +1,7 @@
 #include "Application.hpp"
 
 #include "DeviceUtils.hpp"
+#include "ModelLoader.hpp"
 
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
@@ -381,23 +382,13 @@ void Application::InitializePipeline() {
 }
 
 void Application::InitializeBuffers() {
-    // Vertex buffer data
-    // There are 5 floats per vertex, one for x, one for y, one for r, one for g, one for b.
-    std::vector<float> pointData = {
-        // x,   y,     r,   g,   b
-        -0.5, -0.5,   1.0, 0.0, 0.0,
-        +0.5, -0.5,   0.0, 1.0, 0.0,
-        +0.5, +0.5,   0.0, 0.0, 1.0,
-        -0.5, +0.5,   1.0, 1.0, 0.0
-    };
-    // We now divide the vector size be 5 fields.
-    m_VertexCount = static_cast<uint32_t>(pointData.size() / 5);
+    std::vector<float> pointData;
+    std::vector<uint16_t> indexData;
 
-    // This is a list of indices referencing positions in the pointData
-    std::vector<uint16_t> indexData = {
-        0, 1, 2, // Triangle #0
-        0, 2, 3  // Triangle #1
-    };
+    bool success = LoadGeometry("webgpu.txt", pointData, indexData);
+    
+    m_VertexCount = static_cast<uint32_t>(pointData.size() / 5);
+    
     m_IndexCount = static_cast<int>(indexData.size());
     
     WGPUBufferDescriptor bufferDesc;
