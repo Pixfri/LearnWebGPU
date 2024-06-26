@@ -385,7 +385,7 @@ void Application::InitializeBuffers() {
     std::vector<float> pointData;
     std::vector<uint16_t> indexData;
 
-    bool success = LoadGeometry("webgpu.txt", pointData, indexData);
+    bool success = LoadGeometry("Resources/webgpu.txt", pointData, indexData);
     
     m_VertexCount = static_cast<uint32_t>(pointData.size() / 5);
     
