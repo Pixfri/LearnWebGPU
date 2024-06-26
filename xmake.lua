@@ -35,6 +35,6 @@ target("LearnWebGPU")
     add_includedirs("LearnWebGPU/Include", {public = true})
     add_headerfiles("LearnWebGPU/Include/**.hpp")
     
-    add_headerfiles("LearnWebGPU/Resource/**")
+    add_headerfiles("LearnWebGPU/Resources/**")
 
     add_packages("glfw", "wgpu-native", "glfw3webgpu")

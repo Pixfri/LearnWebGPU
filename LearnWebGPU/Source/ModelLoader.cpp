@@ -2,11 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <string>
 
-bool LoadGeometry(const fs::path &path, std::vector<float> &pointData, std::vector<uint16_t> &indexData) {
+bool LoadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData) {
     std::ifstream file(path);
     if (!file.is_open()) {
         return false;
@@ -26,49 +25,37 @@ bool LoadGeometry(const fs::path &path, std::vector<float> &pointData, std::vect
     uint16_t index;
     std::string line;
     while (!file.eof()) {
-        std::getline(file, line);
-
-        // Overcome the `CRLF` problem
+        getline(file, line);
+        
+        // overcome the `CRLF` problem
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
-
+        
         if (line == "[points]") {
             currentSection = Section::Points;
         }
-
-        if (line == "[indices]") {
+        else if (line == "[indices]") {
             currentSection = Section::Indices;
         }
-
-        if (line == "#" || line.empty()) {
-            // Do nothing, this line is a comment.
+        else if (line[0] == '#' || line.empty()) {
+            // Do nothing, this is a comment
         }
-
-        switch(currentSection) {
-            case Section::Points:
-            {
-                std::istringstream iss(line);
-                // Get x, y, r, g, b
-                for (int i = 0; i < 5; ++i) {
-                    iss >> value;
-                    pointData.push_back(value);
-                }
-                break;
+        else if (currentSection == Section::Points) {
+            std::istringstream iss(line);
+            // Get x, y, r, g, b
+            for (int i = 0; i < 5; ++i) {
+                iss >> value;
+                pointData.push_back(value);
             }
-            case Section::Indices:
-            {
-                std::istringstream iss(line);
-                // Get corners #0, #1 and #2
-                for (int i = 0; i < 3; ++i) {
-                    iss >> index;
-                    indexData.push_back(index);
-                }
-                break;
+        }
+        else if (currentSection == Section::Indices) {
+            std::istringstream iss(line);
+            // Get corners #0 #1 and #2
+            for (int i = 0; i < 3; ++i) {
+                iss >> index;
+                indexData.push_back(index);
             }
-            case Section::None:
-                std::cout << "This section doesn't exist or isn't implemented yet.";
-                break;
         }
     }
     return true;
